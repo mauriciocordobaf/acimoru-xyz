@@ -1,0 +1,11 @@
+titulo: Proyectos "importantes"
+orden: 3
+bloques:
+  - tipo: texto
+    texto: Llevo desde el internet en 2015, mientras que edito cosas para YouTube y a veces meto algun TikTok viral cada milenio, he hecho muchisimas cosas pero de las cosas que considero mas bonitas que he hecho son estas.
+  - tipo: destacado
+    imagen: minecraft-title.png
+    texto: Servidor de Minecraft hecho con amigos, con eventos ocasionales, distintos biomas, encantamientos personalizados, bosses nuevos, etc. **Organizado por mi.**
+  - tipo: destacado
+    imagen: curlogo.png
+    texto: Proyecto creado desde 2021 junto a mis 2 amigos de toda la vida, se trata acerca de nada y todo a la vez. **Siempre nos vamos por las ramas en este proyecto.**

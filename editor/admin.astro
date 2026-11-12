@@ -1,0 +1,1022 @@
+---
+/* Editor visual privado. Solo existe en `npm run dev` (ver integration.mjs). */
+import '@fontsource-variable/rubik';
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Editor · acimoru</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body data-modo="editar">
+    <aside id="panel">
+      <header class="cabecera">
+        <div>
+          <strong>Editor</strong>
+          <small>Privado · solo en tu computador</small>
+        </div>
+        <span id="estado" role="status">Cargando…</span>
+      </header>
+      <div id="contenido"></div>
+    </aside>
+
+    <section id="vista">
+      <div class="barra">
+        <button type="button" class="solo-estrecho" data-accion="modo">← Editar</button>
+        <div class="grupo" role="group" aria-label="Tamaño de la vista previa">
+          <button type="button" data-ancho="escritorio" aria-pressed="true">Escritorio</button>
+          <button type="button" data-ancho="movil" aria-pressed="false">Móvil</button>
+        </div>
+        <button type="button" data-accion="recargar">Recargar</button>
+        <a href="/" target="_blank" rel="noopener">Abrir sitio ↗</a>
+      </div>
+      <div class="marco" data-ancho="escritorio">
+        <iframe id="preview" src="/" title="Vista previa del sitio"></iframe>
+      </div>
+    </section>
+
+    <button type="button" id="ver-vista" class="solo-estrecho" data-accion="modo">Ver vista previa →</button>
+
+    <style is:global>
+      :root {
+        --azul: #0668ab;
+        --azul2: #0280d6;
+        --turquesa: #2f9da4;
+        --tinta: #0b3050;
+        --suave: #5b7388;
+        --linea: #d5e3ee;
+        --fondo: #eef5fa;
+        --rojo: #c2362f;
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        display: grid;
+        grid-template-columns: minmax(340px, 440px) 1fr;
+        font-family: 'Rubik Variable', system-ui, sans-serif;
+        font-size: 14px;
+        line-height: 1.45;
+        color: var(--tinta);
+        background: var(--fondo);
+      }
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+        color: inherit;
+      }
+
+      /* ---------- Panel izquierdo ---------- */
+      #panel {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        height: 100dvh;
+        border-right: 1px solid var(--linea);
+        background: var(--fondo);
+      }
+      .cabecera {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        background: var(--azul);
+        color: #fff;
+      }
+      .cabecera strong {
+        display: block;
+        font-size: 17px;
+      }
+      .cabecera small {
+        opacity: 0.8;
+      }
+      #estado {
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgb(255 255 255 / 0.18);
+        font-size: 12px;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      #estado.error {
+        background: #fff;
+        color: var(--rojo);
+        white-space: normal;
+      }
+      #contenido {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 14px 14px 80px;
+      }
+
+      h2 {
+        margin: 22px 4px 8px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--suave);
+      }
+      h2:first-child {
+        margin-top: 4px;
+      }
+      .ayuda {
+        margin: 0 4px 10px;
+        font-size: 12.5px;
+        color: var(--suave);
+      }
+
+      details.caja {
+        margin-bottom: 8px;
+        border: 1px solid var(--linea);
+        border-radius: 14px;
+        background: #fff;
+      }
+      details.caja > summary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 10px 10px 14px;
+        cursor: pointer;
+        list-style: none;
+        font-weight: 600;
+        border-radius: 14px;
+      }
+      details.caja > summary::-webkit-details-marker {
+        display: none;
+      }
+      details.caja > summary::before {
+        content: '';
+        flex: none;
+        width: 7px;
+        height: 7px;
+        border-right: 2px solid var(--azul);
+        border-bottom: 2px solid var(--azul);
+        rotate: -45deg;
+        transition: rotate 0.2s;
+      }
+      details.caja[open] > summary::before {
+        rotate: 45deg;
+      }
+      details.caja > summary .nombre {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      details.caja > summary .id {
+        font-weight: 400;
+        font-size: 12px;
+        color: var(--suave);
+      }
+      .cuerpo {
+        display: grid;
+        gap: 10px;
+        padding: 4px 12px 14px;
+      }
+
+      /* ---------- Campos ---------- */
+      label.campo {
+        display: grid;
+        gap: 4px;
+        font-size: 12.5px;
+        font-weight: 500;
+        color: var(--suave);
+      }
+      input[type='text'],
+      input[type='url'],
+      textarea,
+      select {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--linea);
+        border-radius: 9px;
+        background: #fff;
+        color: var(--tinta);
+        font-size: 14px;
+      }
+      textarea {
+        min-height: 92px;
+        resize: vertical;
+        line-height: 1.45;
+      }
+      input:focus-visible,
+      textarea:focus-visible,
+      select:focus-visible,
+      button:focus-visible,
+      summary:focus-visible,
+      a:focus-visible {
+        outline: 2px solid var(--azul2);
+        outline-offset: 1px;
+      }
+      .fila {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .fila > .crece {
+        flex: 1;
+        min-width: 0;
+      }
+      .casilla {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--tinta);
+      }
+      .casilla input {
+        width: 17px;
+        height: 17px;
+        accent-color: var(--azul);
+      }
+      .color {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--tinta);
+      }
+      .color input {
+        width: 44px;
+        height: 32px;
+        padding: 2px;
+        border: 1px solid var(--linea);
+        border-radius: 8px;
+        background: #fff;
+        cursor: pointer;
+      }
+
+      /* ---------- Botones ---------- */
+      button {
+        cursor: pointer;
+        border: 1px solid var(--linea);
+        border-radius: 9px;
+        background: #fff;
+        padding: 7px 12px;
+        font-weight: 500;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+      }
+      button:hover {
+        background: #f2f8fc;
+        border-color: #b9d2e4;
+      }
+      button:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+      button.principal {
+        background: var(--azul);
+        border-color: var(--azul);
+        color: #fff;
+      }
+      button.principal:hover {
+        background: var(--azul2);
+      }
+      button.icono {
+        flex: none;
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        display: grid;
+        place-items: center;
+        font-size: 15px;
+        line-height: 1;
+      }
+      button.peligro {
+        color: var(--rojo);
+      }
+      button.peligro.confirmar {
+        background: var(--rojo);
+        border-color: var(--rojo);
+        color: #fff;
+      }
+
+      /* ---------- Bloques ---------- */
+      .bloque {
+        border: 1px solid var(--linea);
+        border-radius: 12px;
+        background: #f8fbfd;
+      }
+      .bloque > .titulo-bloque {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 6px 6px 12px;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--azul);
+      }
+      .bloque > .titulo-bloque span {
+        flex: 1;
+      }
+      .bloque > .campos {
+        display: grid;
+        gap: 9px;
+        padding: 2px 10px 12px;
+      }
+      .bloque > .campos:empty {
+        display: none;
+      }
+      .nota {
+        margin: 0;
+        font-size: 12.5px;
+        color: var(--suave);
+      }
+      .foto {
+        display: grid;
+        gap: 8px;
+        padding: 9px;
+        border: 1px dashed #bcd3e3;
+        border-radius: 10px;
+        background: #fff;
+      }
+      .imagen {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .imagen img {
+        flex: none;
+        width: 64px;
+        height: 44px;
+        object-fit: contain;
+        border-radius: 7px;
+        border: 1px solid var(--linea);
+        background:
+          repeating-conic-gradient(#e6eef4 0 25%, #fff 0 50%) 0 0 / 12px 12px;
+      }
+      .imagen select {
+        flex: 1;
+        min-width: 0;
+      }
+      .anadir {
+        display: flex;
+        gap: 8px;
+        padding-top: 4px;
+      }
+      .anadir select,
+      .anadir input {
+        flex: 1;
+        min-width: 0;
+      }
+      .pie-seccion {
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 4px;
+      }
+
+      /* ---------- Vista previa ---------- */
+      #vista {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        height: 100dvh;
+      }
+      .barra {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--linea);
+        background: #fff;
+      }
+      .barra a {
+        margin-left: auto;
+        color: var(--azul);
+        font-weight: 500;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+      .grupo {
+        display: flex;
+      }
+      .grupo button {
+        border-radius: 0;
+      }
+      .grupo button:first-child {
+        border-radius: 9px 0 0 9px;
+      }
+      .grupo button:last-child {
+        border-radius: 0 9px 9px 0;
+        margin-left: -1px;
+      }
+      .grupo button[aria-pressed='true'] {
+        background: var(--azul);
+        border-color: var(--azul);
+        color: #fff;
+      }
+      .marco {
+        flex: 1;
+        min-height: 0;
+        display: grid;
+        justify-items: center;
+        background: #dfe9f1;
+      }
+      .marco iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #fff;
+      }
+      .marco[data-ancho='movil'] {
+        padding: 14px 0;
+      }
+      .marco[data-ancho='movil'] iframe {
+        width: min(390px, 100%);
+        border-radius: 22px;
+        box-shadow: 0 10px 30px -10px rgb(2 38 74 / 0.5);
+      }
+
+      .solo-estrecho {
+        display: none;
+      }
+      #ver-vista {
+        position: fixed;
+        right: 14px;
+        bottom: 14px;
+        padding: 11px 18px;
+        border-radius: 999px;
+        background: var(--azul);
+        border-color: var(--azul);
+        color: #fff;
+        font-weight: 600;
+        box-shadow: 0 10px 24px -8px rgb(2 38 74 / 0.6);
+      }
+
+      /* Pantallas estrechas: se ve el editor o la vista previa, no ambos */
+      @media (max-width: 880px) {
+        body {
+          grid-template-columns: 1fr;
+        }
+        .solo-estrecho {
+          display: inline-block;
+        }
+        body[data-modo='editar'] #vista,
+        body[data-modo='vista'] #panel,
+        body[data-modo='vista'] #ver-vista {
+          display: none;
+        }
+        #panel {
+          border-right: 0;
+        }
+      }
+    </style>
+
+    <script>
+      /* ============================================================
+         Editor: lee y guarda src/content/* a través de /__editor/api
+         ============================================================ */
+      type Foto = { imagen: string; enlace?: string; descripcion?: string };
+      type Bloque = { tipo: string; texto?: string; enlace?: string; imagen?: string; descripcion?: string; fotos?: Foto[] };
+      type Seccion = { id: string; titulo: string; orden: number; bloques: Bloque[] };
+      type Red = { nombre: string; icono: string; enlace: string };
+      type Sitio = {
+        titulo: string;
+        descripcion: string;
+        logo: string;
+        pie?: string;
+        frase?: string;
+        audio: { archivo: string; volumen: number };
+        redes: Red[];
+        tema: { principal: string; secundario: string; acento: string; burbujas: boolean; formas: boolean; destellos: boolean };
+      };
+      type Estado = { sitio: Sitio; secciones: Seccion[]; imagenes: string[]; audios: string[] };
+
+      /* Al guardar, el servidor de desarrollo pide recargar todas las páginas abiertas.
+         El editor no debe recargarse (perderías lo que estás escribiendo): solo la vista previa. */
+      import.meta.hot?.on('vite:beforeFullReload', (p: { path?: string }) => {
+        p.path = '/__editor-sin-recarga.html';
+      });
+
+      const API = '/__editor/api';
+      const TEMA_ORIGINAL = { principal: '#0668ab', secundario: '#0280d6', acento: '#40b1b8' };
+
+      /* Elementos que se pueden añadir a una sección */
+      const TIPOS: Record<string, { nombre: string; nuevo: () => Bloque }> = {
+        texto: { nombre: 'Texto', nuevo: () => ({ tipo: 'texto', texto: 'Escribe aquí…' }) },
+        galeria: { nombre: 'Galería de fotos', nuevo: () => ({ tipo: 'galeria', fotos: [{ imagen: S.imagenes[0] ?? '' }] }) },
+        destacado: { nombre: 'Imagen con texto al lado', nuevo: () => ({ tipo: 'destacado', imagen: S.imagenes[0] ?? '', texto: 'Texto al lado de la imagen.' }) },
+        boton: { nombre: 'Botón con enlace', nuevo: () => ({ tipo: 'boton', texto: 'Ver más', enlace: 'https://' }) },
+        video: { nombre: 'Video de YouTube', nuevo: () => ({ tipo: 'video', enlace: '' }) },
+        spoiler: { nombre: 'Spoiler (texto oculto)', nuevo: () => ({ tipo: 'spoiler', texto: 'Texto oculto' }) },
+        redes: { nombre: 'Iconos de redes', nuevo: () => ({ tipo: 'redes' }) },
+        separador: { nombre: 'Separador ondulado', nuevo: () => ({ tipo: 'separador' }) },
+      };
+
+      let S: Estado;
+      const abiertos = new Set<string>();
+      const contenido = document.getElementById('contenido')!;
+      const estadoEl = document.getElementById('estado')!;
+      const preview = document.getElementById('preview') as HTMLIFrameElement;
+
+      /* ---------- utilidades ---------- */
+      type Hijo = Node | string | null | undefined | false;
+      function h<K extends keyof HTMLElementTagNameMap>(
+        tag: K,
+        props: Record<string, unknown> = {},
+        ...hijos: Hijo[]
+      ): HTMLElementTagNameMap[K] {
+        const el = document.createElement(tag);
+        for (const [k, v] of Object.entries(props)) {
+          if (v === undefined || v === null || v === false) continue;
+          if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v as EventListener);
+          else if (k === 'class') el.className = String(v);
+          else if (k in el && k !== 'list') (el as unknown as Record<string, unknown>)[k] = v;
+          else el.setAttribute(k, String(v));
+        }
+        for (const hijo of hijos) if (hijo) el.append(hijo);
+        return el;
+      }
+
+      async function api(metodo: string, ruta: string, cuerpo?: unknown, crudo = false) {
+        const r = await fetch(API + ruta, {
+          method: metodo,
+          headers: { 'x-editor': '1', ...(crudo || cuerpo === undefined ? {} : { 'content-type': 'application/json' }) },
+          body: cuerpo === undefined ? undefined : crudo ? (cuerpo as BodyInit) : JSON.stringify(cuerpo),
+        });
+        const datos = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(datos.error || r.statusText);
+        return datos;
+      }
+
+      function estado(texto: string, error = false) {
+        estadoEl.textContent = texto;
+        estadoEl.classList.toggle('error', error);
+      }
+
+      const slug = (t: string) =>
+        t
+          .normalize('NFD')
+          .replace(/[̀-ͯ]/g, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .slice(0, 30) || 'seccion';
+
+      /* ---------- guardado automático ---------- */
+      const sucios = new Set<string>();
+      let reloj = 0;
+      let guardando = false;
+
+      function marcar(clave: string) {
+        sucios.add(clave);
+        estado('Guardando…');
+        clearTimeout(reloj);
+        reloj = window.setTimeout(guardar, 500);
+      }
+      async function guardar() {
+        if (guardando) {
+          reloj = window.setTimeout(guardar, 300);
+          return;
+        }
+        guardando = true;
+        const claves = [...sucios];
+        sucios.clear();
+        try {
+          for (const c of claves) {
+            if (c === 'sitio') await api('PUT', '/sitio', S.sitio);
+            else {
+              const s = S.secciones.find((x) => x.id === c);
+              if (s) await api('PUT', '/seccion/' + s.id, { titulo: s.titulo, orden: s.orden, bloques: s.bloques });
+            }
+          }
+          if (!sucios.size) estado('Guardado ✓');
+          recargarVista();
+        } catch (e) {
+          claves.forEach((c) => sucios.add(c));
+          estado('No se pudo guardar: ' + (e as Error).message, true);
+        }
+        guardando = false;
+      }
+      addEventListener('beforeunload', (e) => {
+        if (sucios.size || guardando) e.preventDefault();
+      });
+
+      /* ---------- vista previa ---------- */
+      let scrollVista = 0;
+      let relojVista = 0;
+      function recargarVista() {
+        clearTimeout(relojVista);
+        relojVista = window.setTimeout(() => preview.contentWindow?.location.reload(), 450);
+      }
+      preview.addEventListener('load', () => {
+        const w = preview.contentWindow;
+        if (!w) return;
+        try {
+          w.document.documentElement.style.scrollBehavior = 'auto';
+          w.scrollTo(0, scrollVista);
+          w.addEventListener('scroll', () => (scrollVista = w.scrollY), { passive: true });
+        } catch {
+          /* la vista previa navegó a otro sitio */
+        }
+      });
+
+      /* ---------- piezas de formulario ---------- */
+      function campo(etiqueta: string, control: HTMLElement) {
+        return h('label', { class: 'campo' }, etiqueta, control);
+      }
+      function entrada<T extends object>(
+        obj: T,
+        k: keyof T,
+        clave: string,
+        op: { area?: boolean; placeholder?: string; alEscribir?: (v: string) => void } = {},
+      ) {
+        const el = op.area ? h('textarea', {}) : h('input', { type: 'text' });
+        el.value = (obj[k] as string | undefined) ?? '';
+        if (op.placeholder) el.placeholder = op.placeholder;
+        el.addEventListener('input', () => {
+          (obj[k] as unknown) = el.value;
+          op.alEscribir?.(el.value);
+          marcar(clave);
+        });
+        return el;
+      }
+      function casilla<T extends object>(obj: T, k: keyof T, clave: string, etiqueta: string) {
+        const el = h('input', { type: 'checkbox' });
+        el.checked = obj[k] !== false;
+        el.addEventListener('change', () => {
+          (obj[k] as unknown) = el.checked;
+          marcar(clave);
+        });
+        return h('label', { class: 'casilla' }, el, etiqueta);
+      }
+      function color<T extends object>(obj: T, k: keyof T, clave: string, etiqueta: string) {
+        const el = h('input', { type: 'color' });
+        el.value = (obj[k] as string) || '#000000';
+        el.addEventListener('input', () => {
+          (obj[k] as unknown) = el.value;
+          marcar(clave);
+        });
+        return h('label', { class: 'color' }, el, etiqueta);
+      }
+      /** Selector de imagen con miniatura y botón para subir una nueva. */
+      function selectorImagen<T extends object>(obj: T, k: keyof T, clave: string) {
+        const actual = () => (obj[k] as string | undefined) ?? '';
+        const mini = h('img', { alt: '' });
+        const pintar = () => (mini.src = actual() ? `${API}/imagen/${encodeURIComponent(actual())}` : '');
+        const sel = h('select', { 'aria-label': 'Imagen' });
+        const llenar = () => {
+          sel.replaceChildren(...S.imagenes.map((n) => h('option', { value: n, selected: n === actual() }, n)));
+          sel.value = actual();
+        };
+        sel.addEventListener('change', () => {
+          (obj[k] as unknown) = sel.value;
+          pintar();
+          marcar(clave);
+        });
+        const archivo = h('input', { type: 'file', accept: 'image/*', hidden: true });
+        archivo.addEventListener('change', async () => {
+          const f = archivo.files?.[0];
+          if (!f) return;
+          estado('Subiendo imagen…');
+          try {
+            const r = await api('POST', '/imagen?nombre=' + encodeURIComponent(f.name), f, true);
+            S.imagenes = r.imagenes;
+            (obj[k] as unknown) = r.nombre;
+            llenar();
+            pintar();
+            marcar(clave);
+          } catch (e) {
+            estado('No se pudo subir: ' + (e as Error).message, true);
+          }
+          archivo.value = '';
+        });
+        llenar();
+        pintar();
+        return h('div', { class: 'imagen' }, mini, sel, h('button', { type: 'button', onclick: () => archivo.click() }, 'Subir…'), archivo);
+      }
+      /** Música de fondo: elegir o subir el archivo, escucharlo y ajustar el volumen. */
+      function selectorAudio() {
+        const a = S.sitio.audio;
+        const oir = h('audio', { controls: true, loop: true, preload: 'none', style: 'width:100%;height:36px' });
+        const sel = h('select', { 'aria-label': 'Música de fondo' });
+        const vol = h('input', { type: 'range', min: '0', max: '1', step: '0.05', style: 'flex:1' });
+        const pct = h('span', { style: 'width:42px;text-align:right' });
+        const pintarAudio = () => {
+          sel.replaceChildren(h('option', { value: '' }, '— Sin música —'), ...S.audios.map((n) => h('option', { value: n }, n)));
+          sel.value = S.audios.includes(a.archivo) ? a.archivo : '';
+          oir.hidden = !sel.value;
+          if (sel.value) oir.src = '/audio/' + encodeURIComponent(sel.value);
+          else oir.removeAttribute('src');
+          vol.value = String(a.volumen);
+          oir.volume = a.volumen;
+          pct.textContent = Math.round(a.volumen * 100) + '%';
+        };
+        sel.addEventListener('change', () => {
+          a.archivo = sel.value;
+          pintarAudio();
+          marcar('sitio');
+        });
+        vol.addEventListener('input', () => {
+          a.volumen = Number(vol.value);
+          oir.volume = a.volumen;
+          pct.textContent = Math.round(a.volumen * 100) + '%';
+          marcar('sitio');
+        });
+        const archivo = h('input', { type: 'file', accept: 'audio/*', hidden: true });
+        archivo.addEventListener('change', async () => {
+          const f = archivo.files?.[0];
+          if (!f) return;
+          estado('Subiendo audio…');
+          try {
+            const r = await api('POST', '/audio?nombre=' + encodeURIComponent(f.name), f, true);
+            S.audios = r.audios;
+            a.archivo = r.nombre;
+            pintarAudio();
+            marcar('sitio');
+          } catch (e) {
+            estado('No se pudo subir: ' + (e as Error).message, true);
+          }
+          archivo.value = '';
+        });
+        pintarAudio();
+        return [
+          h('div', { class: 'fila' }, h('div', { class: 'crece' }, sel), h('button', { type: 'button', onclick: () => archivo.click() }, 'Subir…'), archivo),
+          oir,
+          h('label', { class: 'campo' }, 'Volumen en la página', h('div', { class: 'fila' }, vol, pct)),
+          h('p', { class: 'nota' }, 'Suena en bucle e intenta empezar sola. Si el navegador lo bloquea, arranca con el primer clic o toque del visitante. El botón redondo de abajo a la derecha la apaga y enciende.'),
+        ];
+      }
+      function botonIcono(simbolo: string, titulo: string, alClic: () => void, desactivado = false) {
+        return h('button', { type: 'button', class: 'icono', title: titulo, 'aria-label': titulo, disabled: desactivado, onclick: (e: Event) => { e.preventDefault(); e.stopPropagation(); alClic(); } }, simbolo);
+      }
+      /** Botón de borrar que pide un segundo clic para confirmar. */
+      function botonBorrar(texto: string, alConfirmar: () => void, icono = false) {
+        let reloj = 0;
+        const b = h('button', { type: 'button', class: 'peligro' + (icono ? ' icono' : ''), title: texto, 'aria-label': texto }, icono ? '✕' : texto);
+        b.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (b.classList.contains('confirmar')) return alConfirmar();
+          b.classList.add('confirmar');
+          b.classList.remove('icono');
+          b.textContent = '¿Seguro?';
+          clearTimeout(reloj);
+          reloj = window.setTimeout(() => {
+            b.classList.remove('confirmar');
+            if (icono) b.classList.add('icono');
+            b.textContent = icono ? '✕' : texto;
+          }, 3000);
+        });
+        return b;
+      }
+      function mover<T>(lista: T[], i: number, d: number) {
+        const j = i + d;
+        if (j < 0 || j >= lista.length) return;
+        [lista[i], lista[j]] = [lista[j], lista[i]];
+      }
+      function caja(clave: string, resumen: Hijo[], cuerpo: Hijo[]) {
+        const d = h('details', { class: 'caja', open: abiertos.has(clave) }, h('summary', {}, ...resumen), h('div', { class: 'cuerpo' }, ...cuerpo));
+        d.addEventListener('toggle', () => (d.open ? abiertos.add(clave) : abiertos.delete(clave)));
+        return d;
+      }
+
+      /* ---------- bloques ---------- */
+      function camposBloque(b: Bloque, clave: string): Hijo[] {
+        switch (b.tipo) {
+          case 'texto':
+            return [campo('Texto — acepta **negrita**, *cursiva*, [enlaces](https://…) y listas con -', entrada(b, 'texto', clave, { area: true }))];
+          case 'spoiler':
+            return [campo('Texto oculto (se revela al hacer clic)', entrada(b, 'texto', clave))];
+          case 'boton':
+            return [campo('Texto del botón', entrada(b, 'texto', clave)), campo('Enlace', entrada(b, 'enlace', clave, { placeholder: 'https://…' }))];
+          case 'video':
+            return [campo('Enlace del video de YouTube', entrada(b, 'enlace', clave, { placeholder: 'https://www.youtube.com/watch?v=…' }))];
+          case 'destacado':
+            return [
+              selectorImagen(b, 'imagen', clave),
+              campo('Texto al lado — acepta **negrita** y *cursiva*', entrada(b, 'texto', clave, { area: true })),
+              campo('Enlace al hacer clic en la imagen (opcional)', entrada(b, 'enlace', clave, { placeholder: 'https://…' })),
+              campo('Descripción de la imagen', entrada(b, 'descripcion', clave)),
+            ];
+          case 'galeria': {
+            const fotos = (b.fotos ??= []);
+            return [
+              ...fotos.map((f, i) =>
+                h(
+                  'div',
+                  { class: 'foto' },
+                  h(
+                    'div',
+                    { class: 'fila' },
+                    h('div', { class: 'crece' }, selectorImagen(f, 'imagen', clave)),
+                    botonIcono('↑', 'Subir foto', () => { mover(fotos, i, -1); marcar(clave); pintar(); }, i === 0),
+                    botonIcono('↓', 'Bajar foto', () => { mover(fotos, i, 1); marcar(clave); pintar(); }, i === fotos.length - 1),
+                    botonBorrar('Quitar foto', () => { fotos.splice(i, 1); marcar(clave); pintar(); }, true),
+                  ),
+                  campo('Enlace al hacer clic (opcional)', entrada(f, 'enlace', clave, { placeholder: 'https://…' })),
+                  campo('Descripción', entrada(f, 'descripcion', clave)),
+                ),
+              ),
+              h('button', { type: 'button', disabled: !S.imagenes.length, onclick: () => { fotos.push({ imagen: S.imagenes[0] }); marcar(clave); pintar(); } }, '+ Añadir foto'),
+            ];
+          }
+          case 'redes':
+            return [h('p', { class: 'nota' }, 'Muestra los iconos de la lista «Redes» de más abajo.')];
+          case 'separador':
+            return [];
+          default:
+            return [h('p', { class: 'nota' }, `Elemento «${b.tipo}» no reconocido por el editor.`)];
+        }
+      }
+
+      function vistaBloque(s: Seccion, b: Bloque, i: number) {
+        return h(
+          'div',
+          { class: 'bloque' },
+          h(
+            'div',
+            { class: 'titulo-bloque' },
+            h('span', {}, TIPOS[b.tipo]?.nombre ?? b.tipo),
+            botonIcono('↑', 'Subir elemento', () => { mover(s.bloques, i, -1); marcar(s.id); pintar(); }, i === 0),
+            botonIcono('↓', 'Bajar elemento', () => { mover(s.bloques, i, 1); marcar(s.id); pintar(); }, i === s.bloques.length - 1),
+            botonBorrar('Quitar elemento', () => { s.bloques.splice(i, 1); marcar(s.id); pintar(); }, true),
+          ),
+          h('div', { class: 'campos' }, ...camposBloque(b, s.id)),
+        );
+      }
+
+      /* ---------- secciones ---------- */
+      function reordenar() {
+        S.secciones.forEach((s, i) => {
+          if (s.orden !== i + 1) {
+            s.orden = i + 1;
+            marcar(s.id);
+          }
+        });
+      }
+
+      function vistaSeccion(s: Seccion, i: number) {
+        const nombre = h('span', { class: 'nombre' }, s.titulo || '(sin título)');
+        const tipo = h('select', { 'aria-label': 'Tipo de elemento' }, ...Object.entries(TIPOS).map(([k, t]) => h('option', { value: k }, t.nombre)));
+        return caja(
+          'sec:' + s.id,
+          [
+            nombre,
+            h('span', { class: 'id' }, '#' + s.id),
+            botonIcono('↑', 'Subir sección', () => { mover(S.secciones, i, -1); reordenar(); pintar(); }, i === 0),
+            botonIcono('↓', 'Bajar sección', () => { mover(S.secciones, i, 1); reordenar(); pintar(); }, i === S.secciones.length - 1),
+          ],
+          [
+            campo('Título', entrada(s, 'titulo', s.id, { alEscribir: (v) => (nombre.textContent = v || '(sin título)') })),
+            ...s.bloques.map((b, j) => vistaBloque(s, b, j)),
+            h(
+              'div',
+              { class: 'anadir' },
+              tipo,
+              h('button', { type: 'button', class: 'principal', onclick: () => { s.bloques.push(TIPOS[tipo.value].nuevo()); marcar(s.id); pintar(); } }, '+ Añadir'),
+            ),
+            h(
+              'div',
+              { class: 'pie-seccion' },
+              botonBorrar('Eliminar sección', async () => {
+                try {
+                  sucios.delete(s.id);
+                  await api('DELETE', '/seccion/' + s.id);
+                  S.secciones.splice(S.secciones.indexOf(s), 1);
+                  reordenar();
+                  estado('Sección eliminada');
+                  pintar();
+                  recargarVista();
+                } catch (e) {
+                  estado('No se pudo eliminar: ' + (e as Error).message, true);
+                }
+              }),
+            ),
+          ],
+        );
+      }
+
+      function nuevaSeccion(titulo: string) {
+        titulo = titulo.trim();
+        if (!titulo) return;
+        let id = slug(titulo);
+        for (let n = 2; S.secciones.some((s) => s.id === id); n++) id = `${slug(titulo)}-${n}`;
+        S.secciones.push({ id, titulo, orden: S.secciones.length + 1, bloques: [TIPOS.texto.nuevo()] });
+        abiertos.add('sec:' + id);
+        marcar(id);
+        pintar();
+      }
+
+      /* ---------- panel completo ---------- */
+      function pintar() {
+        const arriba = contenido.scrollTop;
+        const sitio = S.sitio;
+        const nueva = h('input', { type: 'text', placeholder: 'Título de la nueva sección', 'aria-label': 'Título de la nueva sección' });
+        nueva.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') nuevaSeccion(nueva.value);
+        });
+
+        contenido.replaceChildren(
+          h('h2', {}, 'Secciones'),
+          h('p', { class: 'ayuda' }, 'Cada sección es una tarjeta de la página. Ábrela para editar su contenido y añadirle elementos.'),
+          ...S.secciones.map(vistaSeccion),
+          h('div', { class: 'anadir' }, nueva, h('button', { type: 'button', class: 'principal', onclick: () => nuevaSeccion(nueva.value) }, '+ Nueva sección')),
+
+          h('h2', {}, 'Redes'),
+          caja(
+            'redes',
+            [h('span', { class: 'nombre' }, `Iconos de redes (${sitio.redes.length})`)],
+            [
+              h('p', { class: 'nota' }, '«Icono» es el nombre de la marca en simpleicons.org: osu, steam, discord, twitch, github, instagram…'),
+              ...sitio.redes.map((r, i) =>
+                h(
+                  'div',
+                  { class: 'foto' },
+                  h(
+                    'div',
+                    { class: 'fila' },
+                    h('div', { class: 'crece' }, entrada(r, 'nombre', 'sitio', { placeholder: 'Nombre' })),
+                    botonIcono('↑', 'Subir red', () => { mover(sitio.redes, i, -1); marcar('sitio'); pintar(); }, i === 0),
+                    botonIcono('↓', 'Bajar red', () => { mover(sitio.redes, i, 1); marcar('sitio'); pintar(); }, i === sitio.redes.length - 1),
+                    botonBorrar('Quitar red', () => { sitio.redes.splice(i, 1); marcar('sitio'); pintar(); }, true),
+                  ),
+                  h(
+                    'div',
+                    { class: 'fila' },
+                    h('div', { style: 'width:110px' }, entrada(r, 'icono', 'sitio', { placeholder: 'Icono' })),
+                    h('div', { class: 'crece' }, entrada(r, 'enlace', 'sitio', { placeholder: 'https://…' })),
+                  ),
+                ),
+              ),
+              h('button', { type: 'button', onclick: () => { sitio.redes.push({ nombre: 'Nueva red', icono: '', enlace: 'https://' }); marcar('sitio'); pintar(); } }, '+ Añadir red'),
+            ],
+          ),
+
+          h('h2', {}, 'Personalizar'),
+          caja(
+            'apariencia',
+            [h('span', { class: 'nombre' }, 'Colores y fondo')],
+            [
+              color(sitio.tema, 'principal', 'sitio', 'Color principal (títulos, barra, fondo)'),
+              color(sitio.tema, 'secundario', 'sitio', 'Color secundario (olas, enlaces)'),
+              color(sitio.tema, 'acento', 'sitio', 'Color de acento (formas, subrayados)'),
+              h('div', {}, h('button', { type: 'button', onclick: () => { Object.assign(sitio.tema, TEMA_ORIGINAL); marcar('sitio'); pintar(); } }, 'Volver a los colores del logo')),
+              casilla(sitio.tema, 'formas', 'sitio', 'Formas del logo flotando'),
+              casilla(sitio.tema, 'burbujas', 'sitio', 'Burbujas'),
+              casilla(sitio.tema, 'destellos', 'sitio', 'Destellos'),
+            ],
+          ),
+          caja('musica', [h('span', { class: 'nombre' }, 'Música de fondo')], selectorAudio()),
+          caja(
+            'general',
+            [h('span', { class: 'nombre' }, 'Logo y textos generales')],
+            [
+              h('label', { class: 'campo' }, 'Logo'),
+              selectorImagen(sitio, 'logo', 'sitio'),
+              campo('Estado o frase bajo el logo (déjalo vacío para no mostrar nada)', entrada(sitio, 'frase', 'sitio')),
+              campo('Título (pestaña del navegador)', entrada(sitio, 'titulo', 'sitio')),
+              campo('Descripción (para Google y al compartir el enlace)', entrada(sitio, 'descripcion', 'sitio', { area: true })),
+              campo('Texto del pie de página', entrada(sitio, 'pie', 'sitio')),
+            ],
+          ),
+        );
+        contenido.scrollTop = arriba;
+      }
+
+      /* ---------- barra de la vista previa ---------- */
+      document.addEventListener('click', (e) => {
+        const b = (e.target as HTMLElement).closest<HTMLElement>('[data-accion],[data-ancho]');
+        if (!b || b.classList.contains('marco')) return;
+        if (b.dataset.accion === 'modo') {
+          document.body.dataset.modo = document.body.dataset.modo === 'editar' ? 'vista' : 'editar';
+        } else if (b.dataset.accion === 'recargar') {
+          preview.contentWindow?.location.reload();
+        } else if (b.dataset.ancho) {
+          document.querySelector<HTMLElement>('.marco')!.dataset.ancho = b.dataset.ancho;
+          document.querySelectorAll('.grupo button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        }
+      });
+
+      /* ---------- arranque ---------- */
+      try {
+        S = await api('GET', '/estado');
+        S.sitio.redes ??= [];
+        S.audios ??= [];
+        S.sitio.audio = { archivo: S.sitio.audio?.archivo ?? '', volumen: S.sitio.audio?.volumen ?? 0.25 };
+        S.sitio.tema = { ...TEMA_ORIGINAL, burbujas: true, formas: true, destellos: true, ...(S.sitio.tema ?? {}) };
+        if (S.secciones[0]) abiertos.add('sec:' + S.secciones[0].id);
+        pintar();
+        estado('Todo guardado');
+      } catch (e) {
+        estado('No se pudo cargar: ' + (e as Error).message, true);
+      }
+    </script>
+  </body>
+</html>

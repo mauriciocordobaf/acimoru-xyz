@@ -1,0 +1,37 @@
+titulo: acimoru | Pagina oficial.
+descripcion: Pagina oficial del jugador de juegos ritmicos.
+logo: logo.png
+pie: hecho con aguapanela con limón :D
+frase: Actualmente, viciado al Ocarina of Time Remake.
+audio:
+  archivo: 030-5-pm.mp3
+  volumen: 0.15
+redes:
+  - nombre: osu!
+    icono: osu
+    enlace: https://osu.ppy.sh/users/10533295
+  - nombre: Twitter
+    icono: twitter
+    enlace: https://twitter.com/acimoru
+  - nombre: Steam
+    icono: steam
+    enlace: https://steamcommunity.com/id/acimoru/
+  - nombre: Spotify
+    icono: spotify
+    enlace: https://open.spotify.com/user/l5zaacffroybg1ozb972616uv?si=e78d02a4cdde4fbb
+  - nombre: AniList
+    icono: anilist
+    enlace: https://anilist.co/user/acimoru/
+  - nombre: YouTube
+    icono: youtube
+    enlace: https://www.youtube.com/@acimoru
+  - nombre: Twitch
+    icono: twitch
+    enlace: https://twitch.tv/acimoru
+tema:
+  principal: "#0668ab"
+  secundario: "#0280d6"
+  acento: "#40b1b8"
+  burbujas: true
+  formas: true
+  destellos: true
