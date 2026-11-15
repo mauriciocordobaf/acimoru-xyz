@@ -57,6 +57,8 @@ function mini(texto: string) {
 const sitio = (await getEntry('sitio', 'sitio'))!.data;
 const logo = imagen(sitio.logo);
 const ogImage = await getImage({ src: logo, format: 'png', width: 836 });
+/* Easter egg: aparece al mantener presionado el logo (ver «Easter egg» en el script de abajo) */
+const sorpresa = await getImage({ src: imagen('barcelonachair.png'), format: 'webp', width: 730 });
 const title = sitio.titulo;
 const description = sitio.descripcion;
 
@@ -225,7 +227,7 @@ const destellos = Array.from({ length: 18 }, (_, i) => ({
 
     <main class="pagina">
       <header class="portada">
-        <h1 class="logo">
+        <h1 class="logo" data-sorpresa={sorpresa.src}>
           <Image
             src={logo}
             alt={title}
@@ -683,6 +685,9 @@ const destellos = Array.from({ length: 18 }, (_, i) => ({
         animation: logo-in 1s 0.1s var(--ease-out) both;
         cursor: pointer;
         user-select: none;
+        -webkit-user-select: none;
+        /* sin menú de «guardar imagen» al mantener presionado en el celular */
+        -webkit-touch-callout: none;
         filter: drop-shadow(0 18px 22px rgb(2 30 60 / 0.45));
       }
       .logo img {
@@ -1319,6 +1324,29 @@ const destellos = Array.from({ length: 18 }, (_, i) => ({
         text-shadow: 0 1px 6px rgb(2 38 74 / 0.5);
       }
 
+      /* ---------- Easter egg: mantener presionado el logo ---------- */
+      .sorpresa {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: grid;
+        place-items: center;
+        padding: 4vmin;
+        background: rgb(2 20 40 / 0.72);
+        cursor: pointer;
+      }
+      .sorpresa img {
+        display: block;
+        max-width: min(730px, 100%);
+        max-height: 88vh;
+        width: auto;
+        height: auto;
+        border-radius: 10px;
+        box-shadow: 0 24px 60px rgb(0 0 0 / 0.6);
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+
       /* ---------- Onda al hacer clic (estilo hit circle) ---------- */
       .ripple {
         position: fixed;
@@ -1609,14 +1637,84 @@ const destellos = Array.from({ length: 18 }, (_, i) => ({
 
       /* Rebote del logo */
       const logo = document.querySelector<HTMLElement>('.logo');
+      let sorpresaAbiertaEn = 0;
       logo?.addEventListener('click', () => {
-        if (reduced) return;
+        if (reduced || performance.now() - sorpresaAbiertaEn < 600) return;
         animate(
           logo,
           { scale: [1, 0.9, 1.06, 1], rotate: [0, -3, 2, 0] },
           { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
         );
       });
+
+      /* Easter egg: mantener presionado el logo ~1 s muestra una imagen sorpresa.
+         Se cierra con un clic, un toque o Escape. La imagen no se descarga hasta entonces. */
+      const urlSorpresa = logo?.dataset.sorpresa;
+      if (logo && urlSorpresa) {
+        const ESPERA = 1000;
+        let temporizador = 0;
+        let apretando: ReturnType<typeof animate> | undefined;
+        let capa: HTMLElement | undefined;
+
+        const cerrar = () => {
+          const c = capa;
+          if (!c || performance.now() - sorpresaAbiertaEn < 400) return;
+          capa = undefined;
+          removeEventListener('keydown', alTeclear);
+          if (reduced) return c.remove();
+          animate(c, { opacity: [1, 0] }, { duration: 0.25 }).finished.then(() => c.remove());
+        };
+        const alTeclear = (e: KeyboardEvent) => {
+          if (e.key === 'Escape') cerrar();
+        };
+        const abrir = () => {
+          if (capa) return;
+          sorpresaAbiertaEn = performance.now();
+          const c = (capa = document.createElement('div'));
+          c.className = 'sorpresa';
+          c.setAttribute('role', 'dialog');
+          c.setAttribute('aria-label', 'Barcelona chair');
+          const img = new Image();
+          img.alt = 'omg, is that a BARCELONA CHAIR?!?';
+          img.draggable = false;
+          img.src = urlSorpresa;
+          c.append(img);
+          c.addEventListener('click', cerrar);
+          addEventListener('keydown', alTeclear);
+          document.body.append(c);
+          if (reduced) return;
+          animate(c, { opacity: [0, 1] }, { duration: 0.2 });
+          animate(
+            img,
+            { scale: [0.2, 1.08, 1], rotate: [-12, 3, 0] },
+            { duration: 0.7, ease: [0.16, 1, 0.3, 1] },
+          );
+        };
+        const soltar = () => {
+          clearTimeout(temporizador);
+          temporizador = 0;
+          if (apretando) {
+            apretando.cancel();
+            apretando = undefined;
+            logo.style.scale = '';
+          }
+        };
+
+        logo.addEventListener('pointerdown', (e) => {
+          if (e.button !== 0) return;
+          soltar();
+          /* el logo se encoge poco a poco mientras se mantiene presionado */
+          if (!reduced) apretando = animate(logo, { scale: [1, 0.88] }, { duration: ESPERA / 1000, ease: 'easeIn' });
+          temporizador = window.setTimeout(() => {
+            soltar();
+            abrir();
+          }, ESPERA);
+        });
+        for (const fin of ['pointerup', 'pointerleave', 'pointercancel'] as const)
+          logo.addEventListener(fin, soltar);
+        /* En el celular, mantener presionada una imagen abre el menú del navegador */
+        logo.addEventListener('contextmenu', (e) => e.preventDefault());
+      }
 
       if (!reduced) {
         /* Onda al hacer clic */
