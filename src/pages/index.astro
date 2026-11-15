@@ -54,6 +54,13 @@ function mini(texto: string) {
     .replace(/\*(.+?)\*/g, '<em>$1</em>');
 }
 
+/* Formas del logo que adornan el borde de cada sección: [arriba, abajo], rotando entre tarjetas */
+const adornos = [
+  ['c', 'x'],
+  ['t', 'c'],
+  ['x', 't'],
+] as const;
+
 const sitio = (await getEntry('sitio', 'sitio'))!.data;
 const logo = imagen(sitio.logo);
 const ogImage = await getImage({ src: logo, format: 'png', width: 836 });
@@ -270,8 +277,22 @@ const destellos = Array.from({ length: 18 }, (_, i) => ({
       </nav>
 
       {
-        secciones.map((s) => (
+        secciones.map((s, n) => (
           <section class="panel card" id={s.id}>
+            <div class="adornos" aria-hidden="true">
+              {adornos[n % adornos.length].map((f, k) => (
+                <svg class:list={['deco', k ? 'abajo' : 'arriba', { equis: f === 'x' }]} viewBox="0 0 40 40">
+                  {f === 'c' && <circle cx="20" cy="20" r="14" />}
+                  {f === 't' && <path d="M8 7 L33 20 L8 33 Z" />}
+                  {f === 'x' && (
+                    <>
+                      <path class="borde" d="M10 10 L30 30 M30 10 L10 30" />
+                      <path class="trazo" d="M10 10 L30 30 M30 10 L10 30" />
+                    </>
+                  )}
+                </svg>
+              ))}
+            </div>
             <h2 class="titulo">
               {s.titulo}
               <svg viewBox="0 0 120 12" aria-hidden="true">
@@ -817,7 +838,7 @@ const destellos = Array.from({ length: 18 }, (_, i) => ({
           opacity: 0;
         }
       }
-      .frase .deco {
+      :is(.frase, .adornos) .deco {
         position: absolute;
         overflow: visible;
         fill: var(--teal);
@@ -835,11 +856,11 @@ const destellos = Array.from({ length: 18 }, (_, i) => ({
         width: 30px;
         --giro: 1;
       }
-      .frase .equis .borde {
+      :is(.frase, .adornos) .equis .borde {
         fill: none;
         stroke-width: 16;
       }
-      .frase .equis .trazo {
+      :is(.frase, .adornos) .equis .trazo {
         fill: none;
         stroke: var(--teal);
         stroke-width: 7;
@@ -1002,11 +1023,17 @@ const destellos = Array.from({ length: 18 }, (_, i) => ({
       .card {
         margin-bottom: clamp(28px, 7vh, 64px);
         padding: clamp(22px, 4vw, 34px) clamp(16px, 4vw, 36px) clamp(24px, 4vw, 34px);
-        background: var(--card);
+        position: relative;
+        /* Borde de pegatina como las letras del logo: banda azul en dos tonos
+           (oscuro arriba, claro abajo) con contorno blanco por fuera */
+        border: 7px solid transparent;
+        background:
+          linear-gradient(var(--card), var(--card)) padding-box,
+          linear-gradient(172deg, var(--deep) 0 46%, var(--blue) 46% 100%) border-box;
         border-radius: clamp(28px, 6vw, 40px);
         box-shadow:
-          0 34px 60px -18px rgb(2 38 74 / 0.6),
-          0 0 0 6px rgb(255 255 255 / 0.28);
+          0 0 0 5px #fff,
+          0 34px 60px -18px rgb(2 38 74 / 0.6);
         text-align: center;
         scroll-margin-top: 84px;
         transition:
@@ -1020,8 +1047,36 @@ const destellos = Array.from({ length: 18 }, (_, i) => ({
         translate: 0 56px;
         scale: 0.96;
       }
-      .js .card.visto > * {
+      .js .card.visto > :not(.adornos) {
         animation: rise 0.7s calc(var(--i, 0) * 80ms + 180ms) var(--ease-out) both;
+      }
+      /* Círculo, triángulo y equis del logo asomados sobre el borde */
+      .adornos {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .adornos .arriba {
+        top: -27px;
+        left: clamp(18px, 6%, 40px);
+        width: 42px;
+        --giro: 1;
+      }
+      .adornos .abajo {
+        bottom: -25px;
+        right: clamp(18px, 6%, 40px);
+        width: 38px;
+        --giro: -1;
+        animation-delay: -2s;
+      }
+      /* En las tarjetas pares cambian de lado */
+      .card:nth-of-type(even) .arriba {
+        left: auto;
+        right: clamp(18px, 6%, 40px);
+      }
+      .card:nth-of-type(even) .abajo {
+        right: auto;
+        left: clamp(18px, 6%, 40px);
       }
       .card > :nth-child(2) {
         --i: 1;
