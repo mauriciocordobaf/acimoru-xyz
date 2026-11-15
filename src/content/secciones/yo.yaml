@@ -3,6 +3,4 @@ orden: 1
 bloques:
   - tipo: texto
     texto: Hola! Me gustan los juegos ritmicos y la aguapanela con limón. Algunos dicen que soy un NPC, les creo totalmente. Tengo 20 años y soy de Colombia.
-  - tipo: spoiler
-    texto: Si, soy el pendejo que pudo jugar Osu con un volante...
   - tipo: redes
